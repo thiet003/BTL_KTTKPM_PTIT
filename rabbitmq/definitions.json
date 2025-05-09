@@ -1,0 +1,84 @@
+{
+    "rabbit_version": "3.8.9",
+    "vhosts": [
+        {
+            "name": "/"
+        }
+    ],
+    "users": [
+        {
+            "name": "admin",
+            "password": "123",
+            "tags": "administrator"
+        }
+    ],
+    "permissions": [
+        {
+            "user": "admin",
+            "vhost": "/",
+            "configure": ".*",
+            "write": ".*",
+            "read": ".*"
+        }
+    ],
+    "queues": [
+        {
+            "name": "race-results-queue",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "driver-info-queue",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        },
+        {
+            "name": "team-info-queue",
+            "vhost": "/",
+            "durable": true,
+            "auto_delete": false,
+            "arguments": {}
+        }
+    ],
+    "exchanges": [
+        {
+            "name": "f1-exchange",
+            "vhost": "/",
+            "type": "topic",
+            "durable": true,
+            "auto_delete": false,
+            "internal": false,
+            "arguments": {}
+        }
+    ],
+    "bindings": [
+        {
+            "source": "f1-exchange",
+            "vhost": "/",
+            "destination": "race-results-queue",
+            "destination_type": "queue",
+            "routing_key": "race.results.updated",
+            "arguments": {}
+        },
+        {
+            "source": "f1-exchange",
+            "vhost": "/",
+            "destination": "driver-info-queue",
+            "destination_type": "queue",
+            "routing_key": "driver.info.updated",
+            "arguments": {}
+        },
+        {
+            "source": "f1-exchange",
+            "vhost": "/",
+            "destination": "team-info-queue",
+            "destination_type": "queue",
+            "routing_key": "team.info.updated",
+            "arguments": {}
+        }
+    ]
+}

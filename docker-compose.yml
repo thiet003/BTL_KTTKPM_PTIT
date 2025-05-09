@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # Service Discovery
+  eureka-server:
+    build: ./eureka-server
+    ports:
+    - "8761:8761"
+    networks:
+      - f1-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8761"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # API Gateway (Facade Pattern)
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - f1-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  # Message Broker
+  rabbitmq:
+    build: ./rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - f1-network
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Databases
+  race-schedule-db:
+    image: mysql:8.0
+    ports:
+      - "3305:3306"
+    networks:
+      - f1-network
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=race_schedule_db
+    volumes:
+      - ./databases/race-schedule-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - race-schedule-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  participant-db:
+    image: mysql:8.0
+    ports:
+      - "3304:3306"
+    networks:
+      - f1-network
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=participant_db
+    volumes:
+      - ./databases/participant-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - participant-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  race-result-db:
+    image: mysql:8.0
+    ports:
+      - "3308:3306"
+    networks:
+      - f1-network
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=race_result_db
+    volumes:
+      - ./databases/race-result-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - race-result-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  standings-db:
+    image: mysql:8.0
+    ports:
+      - "3309:3306"
+    networks:
+      - f1-network
+    environment:
+    
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=standings_db
+    volumes:
+      - ./databases/standings-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - standings-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Microservices
+  race-schedule-service:
+    build: ./race-schedule-service
+    ports:
+      - "8081:8081"
+    networks:
+      - f1-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      race-schedule-db:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  participant-service:
+    build: ./participant-service
+    ports:
+      - "8082:8082"
+    networks:
+      - f1-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      participant-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  race-result-service:
+    build: ./race-result-service
+    ports:
+      - "8083:8083"
+    networks:
+      - f1-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      race-result-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  standings-service:
+    build: ./standings-service
+    ports:
+      - "8084:8084"
+    networks:
+      - f1-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      standings-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      race-result-service:
+        condition: service_started
+      participant-service:
+        condition: service_started
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+networks:
+  f1-network:
+    driver: bridge
+
+volumes:
+  rabbitmq-data:
+  race-schedule-db-data:
+  participant-db-data:
+  race-result-db-data:
+  standings-db-data:
