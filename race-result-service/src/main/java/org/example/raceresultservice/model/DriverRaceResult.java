@@ -1,5 +1,9 @@
 package org.example.raceresultservice.model;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIdentityReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,23 +21,25 @@ public class DriverRaceResult {
     @Id
     private String id;
 
-    @Column(name = "race_stage_id", nullable = false)
-    private String raceStageId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "race_stage_id", nullable = false)
+    @JsonIgnoreProperties({"raceResults", "hibernateLazyInitializer", "handler"})
+    private RaceStage raceStage;
 
-    @Column(name = "driver_id", nullable = false)
-    private String driverId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "driver_id", nullable = false)
+    @JsonIgnoreProperties({"raceResults", "hibernateLazyInitializer", "handler"})
+    private Driver driver;
 
-    @Column(name = "team_id", nullable = false)
-    private String teamId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "team_id", nullable = false)
+    @JsonIgnoreProperties({"raceResults", "hibernateLazyInitializer", "handler"})
+    private Team team;
 
-    @Column(name = "driver_name", nullable = true)
-    private String driverName;
-
-    @Column(name = "team_name", nullable = true)
-    private String teamName;
-
-    @Column(name = "season_id", nullable = false)
-    private String seasonId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "season_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private Season season;
 
     @Column(name = "grid_position", nullable = true)
     private Integer gridPosition;

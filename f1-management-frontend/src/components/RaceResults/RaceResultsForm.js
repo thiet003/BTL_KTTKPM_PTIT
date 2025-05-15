@@ -1,7 +1,7 @@
 import React from 'react';
 import { Table, Form, InputGroup } from 'react-bootstrap';
 
-const RaceResultsForm = ({ entries, results, onResultChange, totalLaps }) => {
+const RaceResultsForm = ({ results, onResultChange, totalLaps }) => {
   // Kiểm tra định dạng thời gian
   const isValidTimeFormat = (timeString) => {
     // Kiểm tra định dạng hh:mm:ss hoặc mm:ss
@@ -93,8 +93,7 @@ const RaceResultsForm = ({ entries, results, onResultChange, totalLaps }) => {
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry, index) => {
-            const result = results.find(r => r.driverId === entry.driverId) || {};
+          {results.map((result, index) => {
             const isFinished = result.status === 'FINISHED';
             const isTimeValid = !isFinished || !result.finishTimeOrGap || isValidTimeFormat(result.finishTimeOrGap);
             
@@ -107,21 +106,15 @@ const RaceResultsForm = ({ entries, results, onResultChange, totalLaps }) => {
               (!isFinished && !isPending && lapsCompleted < parseInt(totalLaps, 10));
             
             return (
-              <tr key={entry.id}>
+              <tr key={result.id}>
                 <td>{index + 1}</td>
-                <td>{entry.driverId}</td>
-                <td>{
-                  // Ưu tiên sử dụng tên từ kết quả đua nếu có, nếu không thì dùng tên từ entries
-                  (result.driverName ? result.driverName : entry.driverName) || 'Tay đua ' + entry.driverId
-                }</td>
-                <td>{
-                  // Ưu tiên sử dụng tên đội từ kết quả đua nếu có, nếu không thì dùng tên từ entries
-                  (result.teamName ? result.teamName : entry.teamName) || 'Đội ' + entry.teamId
-                }</td>
+                <td>{result.driverId}</td>
+                <td>{result.driverName || 'Tay đua ' + result.driverId}</td>
+                <td>{result.teamName || 'Đội ' + result.teamId}</td>
                 <td>
                   <Form.Select
                     value={result.status || 'PENDING'}
-                    onChange={(e) => handleStatusChange(entry.driverId, e.target.value)}
+                    onChange={(e) => handleStatusChange(result.driverId, e.target.value)}
                   >
                     <option value="PENDING">Chưa xuất phát</option>
                     <option value="FINISHED">Hoàn thành</option>
@@ -134,7 +127,7 @@ const RaceResultsForm = ({ entries, results, onResultChange, totalLaps }) => {
                       type="text"
                       placeholder={isFinished ? "1:32:45" : "N/A"}
                       value={result.finishTimeOrGap || ''}
-                      onChange={(e) => handleTimeChange(entry.driverId, e.target.value)}
+                      onChange={(e) => handleTimeChange(result.driverId, e.target.value)}
                       disabled={!isFinished}
                       isInvalid={isFinished && (!result.finishTimeOrGap || !isTimeValid)}
                     />
@@ -157,7 +150,7 @@ const RaceResultsForm = ({ entries, results, onResultChange, totalLaps }) => {
                       min="0"
                       max={totalLaps}
                       value={result.lapsCompleted || (isFinished ? totalLaps : 0)}
-                      onChange={(e) => handleLapsChange(entry.driverId, e.target.value, isFinished, result.status)}
+                      onChange={(e) => handleLapsChange(result.driverId, e.target.value, isFinished, result.status)}
                       isInvalid={!isLapsValid}
                     />
                     {!isLapsValid && (

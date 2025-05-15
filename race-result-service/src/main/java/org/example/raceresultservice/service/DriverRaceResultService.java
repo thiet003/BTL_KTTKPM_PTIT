@@ -1,13 +1,10 @@
 package org.example.raceresultservice.service;
 
 import org.example.raceresultservice.event.RaceResultUpdatedEvent;
-import org.example.raceresultservice.model.DriverRaceResult;
-import org.example.raceresultservice.model.RaceStatus;
-import org.example.raceresultservice.repository.DriverRaceResultRepository;
+import org.example.raceresultservice.model.*;
+import org.example.raceresultservice.repository.*;
 import org.example.raceresultservice.strategy.PointsCalculationStrategy;
 import org.example.raceresultservice.client.ParticipantClient;
-import org.example.raceresultservice.model.Driver;
-import org.example.raceresultservice.model.RacingTeam;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -30,6 +27,19 @@ public class DriverRaceResultService {
 
     @Autowired
     private ParticipantClient participantClient;
+    
+    @Autowired
+    private DriverRepository driverRepository;
+    
+    @Autowired
+    private TeamRepository teamRepository;
+    
+    @Autowired
+    private RaceStageRepository raceStageRepository;
+    
+    @Autowired
+    private SeasonRepository seasonRepository;
+    
     // Lấy tất cả kết quả đua
     public List<DriverRaceResult> getAllDriverRaceResults() {
         return driverRaceResultRepository.findAll();
@@ -38,103 +48,94 @@ public class DriverRaceResultService {
     public Optional<DriverRaceResult> getDriverRaceResultById(String id) {
         return driverRaceResultRepository.findById(id);
     }
+    // Lấy kết quả đua theo RaceStage
+    public List<DriverRaceResult> getDriverRaceResultsByRaceStage(RaceStage raceStage) {
+        return driverRaceResultRepository.findByRaceStage(raceStage);
+    }
     // Lấy kết quả đua theo id stage đua
     public List<DriverRaceResult> getDriverRaceResultsByRaceStageId(String raceStageId) {
         return driverRaceResultRepository.findByRaceStageId(raceStageId);
     }
-    // Lấy kết quả đua theo id tay đua
-    public List<DriverRaceResult> getDriverRaceResultsByDriverId(String driverId) {
-        return driverRaceResultRepository.findByDriverId(driverId);
+    // Lấy kết quả đua theo Driver
+    public List<DriverRaceResult> getDriverRaceResultsByDriver(Driver driver) {
+        return driverRaceResultRepository.findByDriver(driver);
+    }
+
+    // Lấy kết quả đua theo Driver và Season
+    public List<DriverRaceResult> getDriverRaceResultsByDriverAndSeason(Driver driver, Season season) {
+        return driverRaceResultRepository.findByDriverAndSeason(driver, season);
     }
     // Lấy kết quả đua theo id tay đua và id mùa giải
     public List<DriverRaceResult> getDriverRaceResultsByDriverIdAndSeasonId(String driverId, String seasonId) {
         return driverRaceResultRepository.findByDriverIdAndSeasonId(driverId, seasonId);
     }
+    
     /**
-     * Cập nhật kết quả chặng đua
+     * Phương thức mới cập nhật kết quả chặng đua theo nguyên tắc hướng đối tượng
      * Implements Observer pattern - đây là phương thức "notifyObservers"
      */
     @Transactional
-    public List<DriverRaceResult> updateRaceResults(String raceStageId, List<DriverRaceResult> results, String seasonId) {
+    public List<DriverRaceResult> updateRaceResults(List<DriverRaceResult> results) {
+        if (results.isEmpty()) {
+            return Collections.emptyList();
+        }
+        
         // Danh sách kết quả đã lưu
         List<DriverRaceResult> savedResults = new ArrayList<>();
         
-        // Lấy các kết quả hiện có theo race stage id để map nhanh sau này
+        // Lấy thông tin chặng đua từ kết quả đầu tiên
+        RaceStage raceStage = results.get(0).getRaceStage();
+        
+        // Đảm bảo các kết quả đều thuộc cùng một chặng đua
+        for (DriverRaceResult result : results) {
+            if (!result.getRaceStage().getId().equals(raceStage.getId())) {
+                throw new IllegalArgumentException("Tất cả kết quả phải thuộc cùng một chặng đua");
+            }
+        }
+        
+        // Lấy ID của chặng đua và mùa giải
+        String raceStageId = raceStage.getId();
+        String seasonId = raceStage.getSeason().getId();
+        
+        // Lấy các kết quả hiện có theo race stage id
         List<DriverRaceResult> existingResults = driverRaceResultRepository.findByRaceStageId(raceStageId);
         Map<String, DriverRaceResult> existingResultsMap = new HashMap<>();
         
         // Tạo map với key là driver_id để dễ dàng tìm kiếm
         for (DriverRaceResult existingResult : existingResults) {
-            existingResultsMap.put(existingResult.getDriverId(), existingResult);
+            existingResultsMap.put(existingResult.getDriver().getId(), existingResult);
         }
-
+        
         // Danh sách các kết quả FINISHED để sắp xếp lại finish position nếu cần
         List<DriverRaceResult> finishedResults = new ArrayList<>();
-
-        // Bước 1: Xử lý tất cả kết quả trước
+        
+        // Xử lý từng kết quả
         for (DriverRaceResult result : results) {
-            result.setRaceStageId(raceStageId);
-            result.setSeasonId(seasonId);
+            // Đảm bảo các entity reference được đồng bộ
+            syncEntityReferences(result);
             
             // Kiểm tra xem đã có kết quả cho tay đua này chưa
-            DriverRaceResult existingResult = existingResultsMap.get(result.getDriverId());
+            DriverRaceResult existingResult = existingResultsMap.get(result.getDriver().getId());
             
             if (existingResult != null) {
-                // Cập nhật kết quả hiện có - giữ nguyên ID
+                // Cập nhật kết quả hiện có
                 existingResult.setGridPosition(result.getGridPosition());
                 existingResult.setFinishPosition(result.getFinishPosition());
                 existingResult.setStatus(result.getStatus());
                 existingResult.setFinishTimeOrGap(result.getFinishTimeOrGap());
                 existingResult.setLapsCompleted(result.getLapsCompleted());
-                existingResult.setTeamId(result.getTeamId());
-                existingResult.setSeasonId(seasonId);
-                
-                // Cập nhật tên đội nếu teamId thay đổi hoặc chưa có tên đội
-                if (!existingResult.getTeamId().equals(result.getTeamId()) || existingResult.getTeamName() == null) {
-                    try {
-                        RacingTeam team = participantClient.getTeamById(result.getTeamId());
-                        if (team != null) {
-                            existingResult.setTeamName(team.getName());
-                        }
-                    } catch (Exception e) {
-                        // Nếu không lấy được thông tin, giữ nguyên tên đội cũ hoặc dùng giá trị mới nếu có
-                        if (result.getTeamName() != null) {
-                            existingResult.setTeamName(result.getTeamName());
-                        }
-                    }
-                }
+                existingResult.setTeam(result.getTeam());
                 
                 if (existingResult.getStatus() == RaceStatus.FINISHED) {
                     finishedResults.add(existingResult);
                 }
                 
                 // Xóa khỏi map để biết kết quả nào đã được cập nhật
-                existingResultsMap.remove(result.getDriverId());
+                existingResultsMap.remove(result.getDriver().getId());
             } else {
                 // Tạo mới kết quả nếu chưa tồn tại
-                result.setId(UUID.randomUUID().toString());
-                
-                // Lấy thông tin tay đua và đội nếu chưa có
-                if (result.getDriverName() == null) {
-                    try {
-                        Driver driver = participantClient.getDriverById(result.getDriverId());
-                        if (driver != null) {
-                            result.setDriverName(driver.getFullName());
-                        }
-                    } catch (Exception e) {
-                        // Bỏ qua lỗi, giữ nguyên null
-                    }
-                }
-                
-                if (result.getTeamName() == null) {
-                    try {
-                        RacingTeam team = participantClient.getTeamById(result.getTeamId());
-                        if (team != null) {
-                            result.setTeamName(team.getName());
-                        }
-                    } catch (Exception e) {
-                        // Bỏ qua lỗi, giữ nguyên null
-                    }
+                if (result.getId() == null) {
+                    result.setId(UUID.randomUUID().toString());
                 }
                 
                 if (result.getStatus() == RaceStatus.FINISHED) {
@@ -143,9 +144,9 @@ public class DriverRaceResultService {
             }
         }
         
-        // Bước 2: Sắp xếp lại các kết quả FINISHED theo thời gian hoàn thành nếu có
+        // Sắp xếp lại các kết quả FINISHED theo thời gian hoàn thành nếu có
         if (!finishedResults.isEmpty()) {
-            // Sắp xếp dựa trên thời gian hoàn thành (chuỗi định dạng thời gian như 1:32:45.123)
+            // Sắp xếp dựa trên thời gian hoàn thành
             finishedResults.sort((r1, r2) -> {
                 String time1 = r1.getFinishTimeOrGap();
                 String time2 = r2.getFinishTimeOrGap();
@@ -177,41 +178,110 @@ public class DriverRaceResultService {
             }
         }
         
-        // Bước 3: Tính điểm và lưu kết quả
-        for (DriverRaceResult existingResult : finishedResults) {
+        // Tính điểm và lưu kết quả
+        for (DriverRaceResult result : finishedResults) {
             // Tính điểm bằng Strategy pattern
-            existingResult.setPoints(pointsCalculationStrategy.calculatePoints(existingResult));
+            result.setPoints(pointsCalculationStrategy.calculatePoints(result));
             
             // Lưu kết quả
-            savedResults.add(driverRaceResultRepository.save(existingResult));
+            savedResults.add(driverRaceResultRepository.save(result));
         }
         
         // Lưu các kết quả không phải FINISHED
         for (DriverRaceResult result : results) {
             if (result.getStatus() != RaceStatus.FINISHED) {
-                if (result.getId() == null) {
-                    result.setId(UUID.randomUUID().toString());
-                }
                 result.setPoints(0); // Không phải FINISHED -> không có điểm
                 savedResults.add(driverRaceResultRepository.save(result));
             }
         }
         
-        // Xóa các kết quả không còn được sử dụng nữa (tùy chọn)
+        // Xóa các kết quả không còn được sử dụng nữa
         if (!existingResultsMap.isEmpty()) {
             driverRaceResultRepository.deleteAll(existingResultsMap.values());
         }
-
+        
         // Notify observers (StandingsService) through RabbitMQ
         RaceResultUpdatedEvent event = new RaceResultUpdatedEvent();
         event.setRaceStageId(raceStageId);
         event.setSeasonId(seasonId);
         event.setUpdatedAt(LocalDateTime.now());
-
+        
         // Use Observer pattern to notify StandingsService
         rabbitTemplate.convertAndSend("f1-exchange", "race.results.updated", event);
-
+        
         return savedResults;
+    }
+    
+    /**
+     * Đồng bộ các entity tham chiếu từ các service khác
+     */
+    private void syncEntityReferences(DriverRaceResult result) {
+        // Đồng bộ Driver
+        Driver driver = result.getDriver();
+        Driver existingDriver = driverRepository.findById(driver.getId()).orElse(null);
+        
+        if (existingDriver == null) {
+            // Lấy thông tin tay đua từ participant-service
+            try {
+                Driver driverData = participantClient.getDriverById(driver.getId());
+                if (driverData != null) {
+                    driver.setFullName(driverData.getFullName());
+                    driver.setNationality(driverData.getNationality());
+                    driverRepository.save(driver);
+                }
+            } catch (Exception e) {
+                // Giữ nguyên thông tin hiện có
+            }
+        } else {
+            // Sử dụng driver đã có
+            result.setDriver(existingDriver);
+        }
+        
+        // Đồng bộ Team
+        Team team = result.getTeam();
+        Team existingTeam = teamRepository.findById(team.getId()).orElse(null);
+        
+        if (existingTeam == null) {
+            // Lấy thông tin đội đua từ participant-service
+            try {
+                Team teamData = participantClient.getTeamById(team.getId());
+                if (teamData != null) {
+                    team.setName(teamData.getName());
+                    team.setCountry(teamData.getCountry());
+                    team.setBase(teamData.getBase());
+                    teamRepository.save(team);
+                }
+            } catch (Exception e) {
+                // Giữ nguyên thông tin hiện có
+            }
+        } else {
+            // Sử dụng team đã có
+            result.setTeam(existingTeam);
+        }
+        
+        // Đồng bộ RaceStage
+        RaceStage raceStage = result.getRaceStage();
+        RaceStage existingRaceStage = raceStageRepository.findById(raceStage.getId()).orElse(null);
+        
+        if (existingRaceStage == null) {
+            // Kiểm tra và đồng bộ season trước khi lưu race stage
+            Season season = raceStage.getSeason();
+            if (season != null) {
+                Season existingSeason = seasonRepository.findById(season.getId()).orElse(null);
+                if (existingSeason != null) {
+                    raceStage.setSeason(existingSeason);
+                } else {
+                    seasonRepository.save(season);
+                }
+            }
+            // Lưu race stage mới
+            raceStageRepository.save(raceStage);
+        } else {
+            // Sử dụng race stage đã có
+            result.setRaceStage(existingRaceStage);
+            // Đảm bảo sử dụng season của race stage hiện có
+            result.setSeason(existingRaceStage.getSeason());
+        }
     }
     
     // Tìm kết quả đua theo id stage đua và id tay đua

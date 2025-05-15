@@ -1,7 +1,7 @@
 package org.example.raceresultservice.client;
 
 import org.example.raceresultservice.model.Driver;
-import org.example.raceresultservice.model.RacingTeam;
+import org.example.raceresultservice.model.Team;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,9 +25,9 @@ public interface ParticipantClient {
     
     // Lấy thông tin đội theo ID
     @GetMapping("/api/teams/{id}")
-    RacingTeam getTeamById(@PathVariable String id);
+    Team getTeamById(@PathVariable String id);
     
     // Lấy thông tin tất cả đội theo ID
     @GetMapping("/api/teams/bulk")
-    List<RacingTeam> getTeamsByIds(@RequestParam Set<String> ids);
+    List<Team> getTeamsByIds(@RequestParam Set<String> ids);
 } 

@@ -9,7 +9,19 @@ export const getRaceEntriesByRaceStageId = async (raceStageId) => {
     throw error;
   }
 };
-// Lấy tất cả kết quả đua theo id chặng đua
+
+// Lấy tất cả kết quả đua theo đối tượng RaceStage 
+export const getRaceResultsByRaceStage = async (raceStage) => {
+  try {
+    const response = await api.post('/race-results/race-stage', raceStage);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching race results for race stage ${raceStage.id}:`, error);
+    throw error;
+  }
+};
+
+// Giữ lại phương thức cũ để tương thích ngược
 export const getRaceResultsByRaceStageId = async (raceStageId) => {
   try {
     const response = await api.get(`/race-results/race-stage/${raceStageId}`);
@@ -19,12 +31,46 @@ export const getRaceResultsByRaceStageId = async (raceStageId) => {
     throw error;
   }
 };
-// Cập nhật kết quả đua
+
+// Cập nhật kết quả đua - sử dụng phương thức theo hướng đối tượng
 export const updateRaceResults = async (raceStageId, seasonId, results) => {
   try {
-    console.log('Sending race results with driver/team names:', results);
+    // Chuyển đổi dữ liệu sang định dạng thích hợp với hướng đối tượng
+    const raceStageRef = {
+      id: raceStageId,
+      season: {
+        id: seasonId
+      }
+    };
+
+    const convertedResults = results.map(result => {
+      return {
+        id: result.id,
+        raceStage: raceStageRef,
+        driver: {
+          id: result.driverId,
+          fullName: result.driverName
+        },
+        team: {
+          id: result.teamId,
+          name: result.teamName
+        },
+        season: {
+          id: seasonId
+        },
+        gridPosition: result.gridPosition,
+        finishPosition: result.finishPosition,
+        points: result.points,
+        status: result.status,
+        finishTimeOrGap: result.finishTimeOrGap,
+        lapsCompleted: result.lapsCompleted
+      };
+    });
     
-    const response = await api.post(`/race-results/update/${raceStageId}?seasonId=${seasonId}`, results);
+    console.log('Sending race results with object structure:', convertedResults);
+    
+    // Dùng endpoint mới
+    const response = await api.post(`/race-results/update`, convertedResults);
     return response.data;
   } catch (error) {
     console.error(`Error updating race results for race stage ${raceStageId}:`, error);

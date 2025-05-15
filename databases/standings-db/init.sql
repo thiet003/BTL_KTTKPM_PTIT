@@ -5,22 +5,94 @@ SET NAMES utf8mb4;
 SET CHARACTER SET utf8mb4;
 SET collation_connection = utf8mb4_unicode_ci;
 
--- Create driver_standings table
+-- Create seasons table
+CREATE TABLE IF NOT EXISTS seasons (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  year INT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create drivers table
+CREATE TABLE IF NOT EXISTS drivers (
+  id VARCHAR(36) PRIMARY KEY,
+  full_name VARCHAR(255) NOT NULL,
+  nationality VARCHAR(100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create teams table
+CREATE TABLE IF NOT EXISTS teams (
+  id VARCHAR(36) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  country VARCHAR(100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create driver_standings table with foreign keys
 CREATE TABLE IF NOT EXISTS driver_standings (
   id VARCHAR(36) PRIMARY KEY,
   season_id VARCHAR(36) NOT NULL,
   driver_id VARCHAR(36) NOT NULL,
-  team_id VARCHAR(36) NOT NULL,
+  team_id VARCHAR(36),
   driver_name VARCHAR(255) NOT NULL,
-  team_name VARCHAR(255) NOT NULL,
+  team_name VARCHAR(255),
   nationality VARCHAR(100),
   total_points INT NOT NULL DEFAULT 0,
   `rank` INT,
   wins INT NOT NULL DEFAULT 0,
   podiums INT NOT NULL DEFAULT 0,
   last_calculated DATETIME,
-  UNIQUE KEY unique_season_driver (season_id, driver_id)
+  UNIQUE KEY unique_season_driver (season_id, driver_id),
+  FOREIGN KEY (season_id) REFERENCES seasons(id),
+  FOREIGN KEY (driver_id) REFERENCES drivers(id),
+  FOREIGN KEY (team_id) REFERENCES teams(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Insert seasons data
+INSERT INTO seasons (id, name, year) VALUES
+('2022', 'Formula 1 2022 Season', 2022),
+('2023', 'Formula 1 2023 Season', 2023),
+('2024', 'Formula 1 2024 Season', 2024);
+
+-- Insert drivers data
+INSERT INTO drivers (id, full_name, nationality) VALUES
+('TD01', 'Nguyễn Văn An', 'Vietnam'),
+('TD02', 'Lê Thị Hồng', 'Vietnam'),
+('TD03', 'Bùi Trí Công', 'Vietnam'),
+('TD04', 'Trần Văn Hoàng', 'Vietnam'),
+('TD05', 'Lê Văn Hữu', 'Vietnam'),
+('TD06', 'Mai Văn Sơn', 'Vietnam'),
+('TDNVA', 'Nguyễn Văn A', 'Vietnam'),
+('TDJS', 'John Smith', 'UK'),
+('TDCG', 'Carlos Garcia', 'Spain'),
+('TDMD', 'Michel Dubois', 'France'),
+('TDTY', 'Takeshi Yamada', 'Japan'),
+('TDAR', 'Antonio Rodriguez', 'Spain'),
+('TDJP', 'James Parker', 'UK'),
+('TDRL', 'Ricardo Lopez', 'Brazil'),
+('TDSC', 'Sarah Chen', 'China'),
+('TDPK', 'Pavel Kowalski', 'Poland'),
+('TDHM', 'Hans Mueller', 'Germany'),
+('TDLT', 'Laura Thompson', 'Australia'),
+('TDAK', 'Alexei Kozlov', 'Russia'),
+('TDJT', 'Jack Thompson', 'USA'),
+('TDMK', 'Maria Kim', 'South Korea'),
+('TDMS', 'Mohamed Salah', 'Egypt');
+
+-- Insert teams data
+INSERT INTO teams (id, name, country) VALUES
+('SW001', 'Speed Warriors', 'Italy'),
+('TA001', 'Team Alpha', 'UK'),
+('SR001', 'Speed Racers', 'Spain'),
+('FW001', 'Fast Wheels', 'France'),
+('SR002', 'Samurai Racing', 'Japan'),
+('TB001', 'Thunder Bolts', 'Germany'),
+('PF001', 'Phoenix Flyers', 'USA'),
+('DR001', 'Dragon Racing', 'China'),
+('LP001', 'Lightning Panthers', 'Brazil'),
+('GD001', 'Golden Dragons', 'China'),
+('RF001', 'Red Foxes', 'Germany'),
+('BS001', 'Blue Stars', 'Australia'),
+('ES001', 'Eagle Squadron', 'USA'),
+('SC001', 'Silver Comets', 'France');
 
 -- Insert sample driver standings data with minimal information (no points or rankings calculated yet)
 -- 2024 Season Standings

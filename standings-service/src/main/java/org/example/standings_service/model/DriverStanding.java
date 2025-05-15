@@ -1,5 +1,6 @@
 package org.example.standings_service.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,23 +19,20 @@ public class DriverStanding {
     @Id
     private String id;
 
-    @Column(name = "season_id", nullable = false)
-    private String seasonId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "season_id", nullable = false)
+    @JsonIgnoreProperties("driverStandings")
+    private Season season;
 
-    @Column(name = "driver_id", nullable = false)
-    private String driverId;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "driver_id", nullable = false)
+    @JsonIgnoreProperties("driverStandings")
+    private Driver driver;
 
-    @Column(name = "team_id")
-    private String teamId;
-
-    @Column(name = "driver_name")
-    private String driverName;
-
-    @Column(name = "team_name")
-    private String teamName;
-
-    @Column(name = "nationality")
-    private String nationality;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "team_id")
+    @JsonIgnoreProperties("driverStandings")
+    private RacingTeam team;
 
     @Column(name = "total_points")
     private Integer totalPoints;

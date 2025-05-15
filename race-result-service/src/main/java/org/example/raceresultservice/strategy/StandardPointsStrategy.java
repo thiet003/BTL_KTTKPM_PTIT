@@ -2,12 +2,14 @@ package org.example.raceresultservice.strategy;
 
 import org.example.raceresultservice.model.DriverRaceResult;
 import org.example.raceresultservice.model.RaceStatus;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /**
  * Cách tính điểm theo chuẩn F1 (2022)
  */
 @Component
+@Qualifier("standard")
 public class StandardPointsStrategy implements PointsCalculationStrategy {
 
     @Override

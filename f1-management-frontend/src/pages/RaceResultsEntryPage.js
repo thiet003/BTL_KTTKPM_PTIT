@@ -33,7 +33,7 @@ const RaceResultsEntryPage = () => {
         setRace(raceData);
         
         // Lấy thông tin đăng ký chặng đua
-        const entriesData = await getRaceEntriesByRaceStageId(id);
+        const entriesData = await getRaceResultsByRaceStageId(id);
         setEntries(entriesData);
         
         // Lấy kết quả đua nếu có

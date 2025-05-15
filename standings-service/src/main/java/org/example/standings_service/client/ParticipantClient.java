@@ -18,13 +18,7 @@ public interface ParticipantClient {
     // Lấy thông tin tay đua theo ID
     @GetMapping("/api/drivers/{id}")
     Driver getDriverById(@PathVariable String id);
-    // Lấy thông tin tất cả tay đua theo ID
-    @GetMapping("/api/drivers/bulk")
-    List<Driver> getDriversByIds(@RequestParam Set<String> ids);
     // Lấy thông tin đội theo ID
     @GetMapping("/api/teams/{id}")
     RacingTeam getTeamById(@PathVariable String id);
-    // Lấy thông tin tất cả đội theo ID
-    @GetMapping("/api/teams/bulk")
-    List<RacingTeam> getTeamsByIds(@RequestParam Set<String> ids);
 }

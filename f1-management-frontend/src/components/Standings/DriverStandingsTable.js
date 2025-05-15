@@ -10,12 +10,12 @@ const DriverStandingsTable = ({ standings, seasonId }) => {
   }
 
   const handleDriverSelect = (driver) => {
-    navigate(`/standings/driver/${driver.driverId}`, { 
+    navigate(`/standings/driver/${driver.driver.id}`, { 
       state: { 
         seasonId: seasonId,
-        driverName: driver.driverName,
-        teamName: driver.teamName,
-        nationality: driver.nationality
+        driverName: driver.driver.fullName,
+        teamName: driver.team.name,
+        nationality: driver.driver.nationality
       } 
     });
   };
@@ -42,9 +42,9 @@ const DriverStandingsTable = ({ standings, seasonId }) => {
               className="clickable-row"
             >
               <td>{standing.rank}</td>
-              <td title={`ID: ${standing.driverId}`}>{standing.driverName || standing.driverId}</td>
-              <td>{standing.nationality || 'N/A'}</td>
-              <td title={`ID: ${standing.teamId}`}>{standing.teamName || standing.teamId}</td>
+              <td title={`ID: ${standing.driver.id}`}>{standing.driver.fullName || standing.driver.id}</td>
+              <td>{standing.driver.nationality || 'N/A'}</td>
+              <td title={`ID: ${standing.team.id}`}>{standing.team.name || standing.team.id}</td>
               <td>{standing.totalPoints}</td>
               <td>{standing.wins}</td>
               <td>{standing.podiums}</td>

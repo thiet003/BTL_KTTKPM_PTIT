@@ -18,15 +18,18 @@ public class RaceEntry {
     @Id
     private String id;
 
-    @Column(name = "race_stage_id", nullable = false)
-    private String raceStageId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "race_stage_id", nullable = false)
+    private RaceStage raceStage;
 
-    @Column(name = "driver_id", nullable = false)
-    private String driverId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "driver_id", nullable = false)
+    private Driver driver;
 
-    @Column(name = "team_id", nullable = false)
-    private String teamId;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id", nullable = false)
+    private Team team;
+    
     @Column(name = "car_number")
     private Integer carNumber;
 

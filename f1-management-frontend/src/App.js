@@ -6,7 +6,7 @@ import HomePage from './pages/HomePage';
 import RaceManagementPage from './pages/RaceManagementPage';
 import RaceEditPage from './pages/RaceEditPage';
 import RaceResultsPage from './pages/RaceResultsPage';
-import RaceResultsEntryPage from './pages/RaceResultsEntryPage';
+import UpdateRaceResultsPage from './pages/UpdateRaceResultsPage';
 import StandingsPage from './pages/StandingsPage';
 import DriverDetailsPage from './pages/DriverDetailsPage';
 import './App.css';
@@ -22,7 +22,7 @@ function App() {
             <Route path="/race-management" element={<RaceManagementPage />} />
             <Route path="/race-management/edit/:id" element={<RaceEditPage />} />
             <Route path="/race-results" element={<RaceResultsPage />} />
-            <Route path="/race-results/entry/:id" element={<RaceResultsEntryPage />} />
+            <Route path="/race-results/entry/:id" element={<UpdateRaceResultsPage />} />
             <Route path="/standings" element={<StandingsPage />} />
             <Route path="/standings/driver/:id" element={<DriverDetailsPage />} />
           </Routes>

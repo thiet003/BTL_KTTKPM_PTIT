@@ -2,6 +2,8 @@ package org.example.standings_service.listener;
 
 import lombok.extern.slf4j.Slf4j;
 import org.example.standings_service.event.DriverInfoUpdatedEvent;
+import org.example.standings_service.model.Season;
+import org.example.standings_service.model.RaceStage;
 import org.example.standings_service.event.RaceResultUpdatedEvent;
 import org.example.standings_service.event.TeamInfoUpdatedEvent;
 import org.example.standings_service.service.DriverStandingService;
@@ -23,7 +25,11 @@ public class EventListener {
     @RabbitListener(queues = "race-results-queue")
     public void handleRaceResultUpdated(RaceResultUpdatedEvent event) {
         log.info("Received race result updated event: {}", event);
-        driverStandingService.recalculateStandingsAfterRaceUpdate(event.getRaceStageId(), event.getSeasonId());
+        Season season = new Season();
+        season.setId(event.getSeasonId());
+        RaceStage raceStage = new RaceStage();
+        raceStage.setId(event.getRaceStageId());
+        driverStandingService.recalculateStandingsAfterRaceUpdate(raceStage, season);
     }
 
     // Lắng nghe cập nhật thông tin tay đua

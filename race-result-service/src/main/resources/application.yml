@@ -13,15 +13,50 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    open-in-view: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
+        enable_lazy_load_no_trans: true
   rabbitmq:
     host: rabbitmq
     port: 5672
     username: admin
     password: 123
+  jackson:
+    date-format: com.fasterxml.jackson.databind.util.StdDateFormat
+    serialization:
+      fail-on-empty-beans: false
+      write-null-map-values: false
+      indent-output: true
+      write-dates-as-timestamps: false
+      write-empty-json-arrays: true
+      write-single-elem-arrays-unwrapped: false
+      fail-on-self-references: false
+    deserialization:
+      fail-on-unknown-properties: false
+      accept-empty-array-as-null-object: true
+      accept-float-as-int: true
+      use-big-decimal-for-floats: true
+      accept-single-value-as-array: true
+    mapper:
+      default-view-inclusion: true
+      accept-case-insensitive-properties: true
+      accept-case-insensitive-enums: true
+      sort-properties-alphabetically: false
+      auto-detect-creators: true
+      auto-detect-fields: true
+      auto-detect-getters: true
+      auto-detect-is-getters: true
+      allow-coercion-of-scalars: true
+      propagate-transient-marker: true
+    visibility:
+      field: any
+      getter: any
+      setter: any
+      is-getter: any
+    default-property-inclusion: non_null
 
 eureka:
   client:

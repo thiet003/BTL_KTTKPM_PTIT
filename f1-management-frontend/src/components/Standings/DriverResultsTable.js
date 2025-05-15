@@ -15,7 +15,6 @@ const DriverResultsTable = ({ results }) => {
       <thead>
         <tr>
           <th>Chặng đua</th>
-          <th>Vị trí xuất phát</th>
           <th>Vị trí về đích</th>
           <th>Điểm</th>
           <th>Trạng thái</th>
@@ -25,10 +24,9 @@ const DriverResultsTable = ({ results }) => {
       <tbody>
         {sortedResults.map((result) => (
           <tr key={result.id}>
-            <td title={`ID: ${result.raceStageId}`}>{result.raceStageName || result.raceStageId}</td>
-            <td>{result.gridPosition || 'N/A'}</td>
+            <td title={`ID: ${result.raceStageId}`}>{result.raceStage.name || result.raceStage.id}</td>
             <td>{result.finishPosition || 'N/A'}</td>
-            <td>{result.points}</td>
+            <td>{result.points || 'N/A'}</td>
             <td>{translateStatus(result.status)}</td>
             <td>{result.finishTimeOrGap || 'N/A'}</td>
           </tr>
