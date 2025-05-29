@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "driver_race_results", uniqueConstraints = {
-        @UniqueConstraint(name = "unique_race_driver_result", columnNames = {"race_stage_id", "driver_id"})
+        @UniqueConstraint(name = "unique_race_driver_result", columnNames = {"race_stage_id", "driver_team_assignment_id"})
 })
 @Data
 @NoArgsConstructor
@@ -27,14 +27,9 @@ public class DriverRaceResult {
     private RaceStage raceStage;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "driver_id", nullable = false)
-    @JsonIgnoreProperties({"raceResults", "hibernateLazyInitializer", "handler"})
-    private Driver driver;
-
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "team_id", nullable = false)
-    @JsonIgnoreProperties({"raceResults", "hibernateLazyInitializer", "handler"})
-    private Team team;
+    @JoinColumn(name = "driver_team_assignment_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private DriverTeamAssignment driverTeamAssignment;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "season_id", nullable = false)

@@ -2,6 +2,7 @@ package org.example.standings_service.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
+import java.time.LocalDate;
 
 /**
  * Model class for consuming race results from race-result-service
@@ -14,11 +15,8 @@ public class DriverRaceResult {
     @JsonIgnoreProperties({"season"})
     private RaceStageInfo raceStage;
     
-    @JsonIgnoreProperties({"driverStandings"})
-    private DriverInfo driver;
-    
-    @JsonIgnoreProperties({"driverStandings"})
-    private TeamInfo team;
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+    private DriverTeamAssignmentInfo driverTeamAssignment;
     
     @JsonIgnoreProperties({"driverStandings"})
     private SeasonInfo season;
@@ -40,14 +38,20 @@ public class DriverRaceResult {
     }
     
     public DriverInfo getDriver() {
-        return driver;
+        return driverTeamAssignment != null ? driverTeamAssignment.getDriver() : null;
     }
     
     public String getDriverId() {
+        DriverInfo driver = getDriver();
         return driver != null ? driver.getId() : null;
     }
     
+    public TeamInfo getTeam() {
+        return driverTeamAssignment != null ? driverTeamAssignment.getTeam() : null;
+    }
+    
     public String getTeamId() {
+        TeamInfo team = getTeam();
         return team != null ? team.getId() : null;
     }
     
@@ -56,11 +60,17 @@ public class DriverRaceResult {
     }
     
     public String getDriverName() {
+        DriverInfo driver = getDriver();
         return driver != null ? driver.getFullName() : null;
     }
     
     public String getTeamName() {
+        TeamInfo team = getTeam();
         return team != null ? team.getName() : null;
+    }
+    
+    public DriverTeamAssignmentInfo getDriverTeamAssignment() {
+        return driverTeamAssignment;
     }
     
     // Lớp nội bộ để ánh xạ
@@ -73,6 +83,21 @@ public class DriverRaceResult {
         private Integer laps;
         private String circuitName;
         private SeasonInfo season;
+    }
+    
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class DriverTeamAssignmentInfo {
+        private String id;
+        
+        @JsonIgnoreProperties({"teamAssignments", "hibernateLazyInitializer", "handler"})
+        private DriverInfo driver;
+        
+        @JsonIgnoreProperties({"driverAssignments", "hibernateLazyInitializer", "handler"})
+        private TeamInfo team;
+        
+        private LocalDate startDate;
+        private LocalDate endDate;
     }
     
     @Data

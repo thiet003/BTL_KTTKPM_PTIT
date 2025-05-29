@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "race_entries", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"race_stage_id", "driver_id"})
+        @UniqueConstraint(columnNames = {"race_stage_id", "driver_team_assignment_id"})
 })
 @Data
 @NoArgsConstructor
@@ -23,12 +23,8 @@ public class RaceEntry {
     private RaceStage raceStage;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "driver_id", nullable = false)
-    private Driver driver;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "team_id", nullable = false)
-    private Team team;
+    @JoinColumn(name = "driver_team_assignment_id", nullable = false)
+    private DriverTeamAssignment driverTeamAssignment;
     
     @Column(name = "car_number")
     private Integer carNumber;

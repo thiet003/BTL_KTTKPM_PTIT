@@ -3,19 +3,15 @@ package org.example.standings_service.service;
 import lombok.extern.slf4j.Slf4j;
 import org.example.standings_service.client.ParticipantClient;
 import org.example.standings_service.client.RaceResultClient;
-import org.example.standings_service.model.Driver;
-import org.example.standings_service.model.DriverRaceResult;
-import org.example.standings_service.model.DriverStanding;
-import org.example.standings_service.model.RaceStage;
-import org.example.standings_service.model.RacingTeam;
-import org.example.standings_service.model.Season;
+import org.example.standings_service.model.*;
 import org.example.standings_service.repository.DriverStandingRepository;
+import org.example.standings_service.repository.DriverTeamAssignmentRepository;
 import org.example.standings_service.strategy.StandingsCalculationStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,6 +21,9 @@ public class DriverStandingService {
 
     @Autowired
     private DriverStandingRepository driverStandingRepository;
+
+    @Autowired
+    private DriverTeamAssignmentRepository driverTeamAssignmentRepository;
 
     @Autowired
     private RaceResultClient raceResultClient;
@@ -39,47 +38,69 @@ public class DriverStandingService {
     public List<DriverStanding> getDriverStandingsBySeason(Season season) {
         return driverStandingRepository.findBySeasonOrderByTotalPointsDescRankAsc(season);
     }
+    
     // Phương thức lấy xếp hạng tay đua theo đối tượng mùa giải và đối tượng tay đua (sử dụng tham chiếu đối tượng)
     public Optional<DriverStanding> getDriverStandingBySeasonAndDriver(Season season, Driver driver) {
         return driverStandingRepository.findBySeasonAndDriver(season, driver);
     }
 
+    // Tìm team hiện tại của driver (team có hợp đồng gần nhất hoặc hiện tại)
+    private RacingTeam findCurrentTeamForDriver(String driverId) {
+        Optional<DriverTeamAssignment> currentAssignment = driverTeamAssignmentRepository.findCurrentAssignmentByDriverId(driverId);
+        if (currentAssignment.isPresent()) {
+            return currentAssignment.get().getTeam();
+        }
+        
+        // Nếu không có assignment hiện tại, lấy assignment gần nhất
+        List<DriverTeamAssignment> assignments = driverTeamAssignmentRepository.findByDriverIdOrderByEndDateDesc(driverId);
+        if (!assignments.isEmpty()) {
+            return assignments.get(0).getTeam();
+        }
+        
+        return null;
+    }
+
     // Tính toán lại xếp hạng cho tay đua trong mùa giải (sử dụng đối tượng)
     @Transactional
     public void recalculateStandingForDriver(Season season, Driver driver) {
-        // Kiểm tra nếu driver hoặc season null thì không xử lý
-        if (driver == null || season == null) {
-            log.warn("Không thể tính toán lại xếp hạng cho tay đua null hoặc mùa giải null");
+        if (season == null || driver == null) {
+            log.warn("Cannot recalculate standing for null season or driver. Season: {}, Driver: {}", 
+                    season != null ? season.getId() : null, 
+                    driver != null ? driver.getId() : null);
             return;
         }
         
-        log.info("Tính toán lại xếp hạng cho tay đua {} trong mùa giải {}", driver.getId(), season.getId());
-        String driverId = driver.getId();
         String seasonId = season.getId();
+        String driverId = driver.getId();
+        
+        log.info("Recalculating standing for driver {} in season {}", driverId, seasonId);
+        
         try {
-            // Lấy tất cả kết quả đua xe cho tay đua trong mùa giải
+            // Lấy tất cả kết quả đua của tay đua trong mùa giải
             List<DriverRaceResult> results = raceResultClient.getResultsByDriverIdAndSeasonId(driverId, seasonId);
-            log.info("Kết quả đua xe cho tay đua {} trong mùa giải {}", driverId, seasonId);
-            if (results.isEmpty()) {
-                log.info("Không tìm thấy kết quả đua xe cho tay đua {} trong mùa giải {}", driverId, seasonId);
-                return;
-            }
-
-            // Nếu đã tồn tại, cập nhật điểm, wins và podiums
+            
+            // Tìm team hiện tại của driver
+            RacingTeam currentTeam = findCurrentTeamForDriver(driverId);
+            
+            // Extract points from race results
+            List<Integer> racePoints = results.stream()
+                    .map(result -> result.getPoints() != null ? result.getPoints() : 0)
+                    .collect(Collectors.toList());
+            
+            // Kiểm tra xem đã có bảng xếp hạng cho tay đua này chưa
             Optional<DriverStanding> existingStanding = driverStandingRepository.findBySeasonAndDriver(season, driver);
-
+            
             if (existingStanding.isPresent()) {
+                // Cập nhật bảng xếp hạng hiện có
                 DriverStanding standing = existingStanding.get();
+                standing.setLastTeam(currentTeam);
                 
-                // Sử dụng strategy để tính toán, giữ nguyên thông tin tên và đội
+                // Sử dụng strategy để tính toán với interface mới
                 DriverStanding calculatedStanding = standingsCalculationStrategy.calculateDriverStanding(
                         seasonId,
                         driverId,
-                        standing.getDriver() != null ? standing.getDriver().getFullName() : driverId,
-                        standing.getTeam() != null ? standing.getTeam().getId() : null,
-                        standing.getTeam() != null ? standing.getTeam().getName() : "Unknown Team",
-                        standing.getDriver() != null ? standing.getDriver().getNationality() : "Unknown",
-                        results
+                        currentTeam != null ? currentTeam.getId() : null,
+                        racePoints
                 );
                 
                 // Chỉ cập nhật thông tin điểm số
@@ -89,57 +110,21 @@ public class DriverStandingService {
                 standing.setLastCalculated(calculatedStanding.getLastCalculated());
                 driverStandingRepository.save(standing);
             } else {
-                // Tạo mới bảng xếp hạng
-                String driverName = driverId; // Default là ID driver
-                String teamId = null;
-                String teamName = "Unknown Team";
-                String nationality = "Unknown"; // Default quốc tịch
-                
-                try {
-                    // Lấy thông tin driver nếu có thể
-                    Driver newDriver = participantClient.getDriverById(driverId);
-                    driverName = newDriver.getFullName();
-                    nationality = newDriver.getNationality(); // Lấy quốc tịch từ driver
-                } catch (Exception e) {
-                    log.warn("Could not fetch driver details for {}, using driver ID as name: {}", driverId, e.getMessage());
-                }
-                // Lấy team từ kết quả đua gần nhất
-                teamId = results.stream()
-                        .sorted(Comparator.comparing(DriverRaceResult::getRaceStageId).reversed())
-                        .findFirst()
-                        .map(DriverRaceResult::getTeamId)
-                        .orElse(null);
-
-                if (teamId == null) {
-                    log.warn("Could not determine team for driver {}", driverId);
-                    return;
-                }
-
-                try {
-                    // Lấy thông tin team nếu có thể
-                    RacingTeam team = participantClient.getTeamById(teamId);
-                    if (team != null && team.getName() != null) {
-                        teamName = team.getName();
-                    }
-                } catch (Exception e) {
-                    log.warn("Could not fetch team details for {}, using default team name: {}", teamId, e.getMessage());
-                }
-
-                // Tạo mới bảng xếp hạng sử dụng Strategy
+                // Tạo mới bảng xếp hạng sử dụng Strategy với interface mới
                 DriverStanding newStanding = standingsCalculationStrategy.calculateDriverStanding(
                         seasonId,
                         driverId,
-                        driverName,
-                        teamId,
-                        teamName,
-                        nationality,
-                        results
+                        currentTeam != null ? currentTeam.getId() : null,
+                        racePoints
                 );
                 
                 if (newStanding == null) {
                     log.error("Strategy returned null standing for driver {} in season {}", driverId, seasonId);
                     return;
                 }
+                
+                // Set lastTeam cho standing mới
+                newStanding.setLastTeam(currentTeam);
                 
                 driverStandingRepository.save(newStanding);
             }
@@ -188,6 +173,7 @@ public class DriverStandingService {
             
             // Xử lý từng kết quả để cập nhật bảng xếp hạng
             for (DriverRaceResult result : raceResults) {
+                // Lấy driver info từ DriverTeamAssignment
                 DriverRaceResult.DriverInfo driverInfo = result.getDriver();
                 // Bỏ qua nếu driverId là null
                 if (driverInfo == null) {
@@ -195,14 +181,14 @@ public class DriverStandingService {
                     continue;
                 }
                 
-                // Tạo đối tượng Driver từ DriverInfo
+                // Tạo đối tượng Driver từ DriverInfo (từ DriverTeamAssignment)
                 Driver driver = new Driver();
                 driver.setId(driverInfo.getId());
                 driver.setFullName(driverInfo.getFullName());
                 driver.setNationality(driverInfo.getNationality());
                 
                 // Tính toán lại toàn bộ điểm từ đầu cho tay đua này thay vì cập nhật gia tăng
-                log.info("Tính toán lại toàn bộ điểm từ đầu");
+                log.info("Tính toán lại toàn bộ điểm từ đầu cho driver {} từ DriverTeamAssignment", driverInfo.getId());
                 recalculateStandingForDriver(season, driver);
             }
             
@@ -293,12 +279,12 @@ public class DriverStandingService {
         }
         
         List<DriverStanding> standings = driverStandingRepository.findAll().stream()
-                .filter(s -> s.getTeam() != null && teamId.equals(s.getTeam().getId()))
+                .filter(s -> s.getLastTeam() != null && teamId.equals(s.getLastTeam().getId()))
                 .collect(Collectors.toList());
 
         for (DriverStanding standing : standings) {
-            // Update the team object instead
-            RacingTeam team = standing.getTeam();
+            // Update the lastTeam object instead
+            RacingTeam team = standing.getLastTeam();
             if (team != null) {
                 team.setName(name);
             }

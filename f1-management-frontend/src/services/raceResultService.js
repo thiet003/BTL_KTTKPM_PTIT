@@ -47,13 +47,16 @@ export const updateRaceResults = async (raceStageId, seasonId, results) => {
       return {
         id: result.id,
         raceStage: raceStageRef,
-        driver: {
-          id: result.driverId,
-          fullName: result.driverName
-        },
-        team: {
-          id: result.teamId,
-          name: result.teamName
+        driverTeamAssignment: {
+          id: result.driverTeamAssignmentId,
+          driver: {
+            id: result.driverId,
+            fullName: result.driverName
+          },
+          team: {
+            id: result.teamId,
+            name: result.teamName
+          }
         },
         season: {
           id: seasonId

@@ -31,5 +31,5 @@ public class Team {
     
     @OneToMany(mappedBy = "team")
     @JsonIgnoreProperties({"team", "hibernateLazyInitializer", "handler"})
-    private List<DriverRaceResult> raceResults;
+    private List<DriverTeamAssignment> driverAssignments;
 } 

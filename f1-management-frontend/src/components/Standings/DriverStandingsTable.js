@@ -14,7 +14,7 @@ const DriverStandingsTable = ({ standings, seasonId }) => {
       state: { 
         seasonId: seasonId,
         driverName: driver.driver.fullName,
-        teamName: driver.team.name,
+        teamName: driver.lastTeam.name,
         nationality: driver.driver.nationality
       } 
     });
@@ -44,7 +44,7 @@ const DriverStandingsTable = ({ standings, seasonId }) => {
               <td>{standing.rank}</td>
               <td title={`ID: ${standing.driver.id}`}>{standing.driver.fullName || standing.driver.id}</td>
               <td>{standing.driver.nationality || 'N/A'}</td>
-              <td title={`ID: ${standing.team.id}`}>{standing.team.name || standing.team.id}</td>
+              <td title={`ID: ${standing.lastTeam.id}`}>{standing.lastTeam.name || standing.lastTeam.id}</td>
               <td>{standing.totalPoints}</td>
               <td>{standing.wins}</td>
               <td>{standing.podiums}</td>

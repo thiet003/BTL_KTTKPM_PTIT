@@ -35,6 +35,9 @@ public class DriverRaceResultService {
     private TeamRepository teamRepository;
     
     @Autowired
+    private DriverTeamAssignmentRepository driverTeamAssignmentRepository;
+    
+    @Autowired
     private RaceStageRepository raceStageRepository;
     
     @Autowired
@@ -44,30 +47,23 @@ public class DriverRaceResultService {
     public List<DriverRaceResult> getAllDriverRaceResults() {
         return driverRaceResultRepository.findAll();
     }
-    // Lấy kết quả đua theo id
-    public Optional<DriverRaceResult> getDriverRaceResultById(String id) {
-        return driverRaceResultRepository.findById(id);
-    }
     // Lấy kết quả đua theo RaceStage
     public List<DriverRaceResult> getDriverRaceResultsByRaceStage(RaceStage raceStage) {
         return driverRaceResultRepository.findByRaceStage(raceStage);
     }
+    
     // Lấy kết quả đua theo id stage đua
     public List<DriverRaceResult> getDriverRaceResultsByRaceStageId(String raceStageId) {
         return driverRaceResultRepository.findByRaceStageId(raceStageId);
     }
-    // Lấy kết quả đua theo Driver
-    public List<DriverRaceResult> getDriverRaceResultsByDriver(Driver driver) {
-        return driverRaceResultRepository.findByDriver(driver);
-    }
-
-    // Lấy kết quả đua theo Driver và Season
-    public List<DriverRaceResult> getDriverRaceResultsByDriverAndSeason(Driver driver, Season season) {
-        return driverRaceResultRepository.findByDriverAndSeason(driver, season);
-    }
     // Lấy kết quả đua theo id tay đua và id mùa giải
     public List<DriverRaceResult> getDriverRaceResultsByDriverIdAndSeasonId(String driverId, String seasonId) {
         return driverRaceResultRepository.findByDriverIdAndSeasonId(driverId, seasonId);
+    }
+    
+    // Lấy kết quả đua theo tay đua và mùa giải(theo hướng đối tượng)
+    public List<DriverRaceResult> getDriverRaceResultsByDriverAndSeason(Driver driver, Season season) {
+        return driverRaceResultRepository.findByDriverAndSeason(driver, season);
     }
     
     /**
@@ -101,9 +97,9 @@ public class DriverRaceResultService {
         List<DriverRaceResult> existingResults = driverRaceResultRepository.findByRaceStageId(raceStageId);
         Map<String, DriverRaceResult> existingResultsMap = new HashMap<>();
         
-        // Tạo map với key là driver_id để dễ dàng tìm kiếm
+        // Tạo map với key là driverTeamAssignment_id để dễ dàng tìm kiếm
         for (DriverRaceResult existingResult : existingResults) {
-            existingResultsMap.put(existingResult.getDriver().getId(), existingResult);
+            existingResultsMap.put(existingResult.getDriverTeamAssignment().getId(), existingResult);
         }
         
         // Danh sách các kết quả FINISHED để sắp xếp lại finish position nếu cần
@@ -114,8 +110,8 @@ public class DriverRaceResultService {
             // Đảm bảo các entity reference được đồng bộ
             syncEntityReferences(result);
             
-            // Kiểm tra xem đã có kết quả cho tay đua này chưa
-            DriverRaceResult existingResult = existingResultsMap.get(result.getDriver().getId());
+            // Kiểm tra xem đã có kết quả cho assignment này chưa
+            DriverRaceResult existingResult = existingResultsMap.get(result.getDriverTeamAssignment().getId());
             
             if (existingResult != null) {
                 // Cập nhật kết quả hiện có
@@ -124,14 +120,13 @@ public class DriverRaceResultService {
                 existingResult.setStatus(result.getStatus());
                 existingResult.setFinishTimeOrGap(result.getFinishTimeOrGap());
                 existingResult.setLapsCompleted(result.getLapsCompleted());
-                existingResult.setTeam(result.getTeam());
                 
                 if (existingResult.getStatus() == RaceStatus.FINISHED) {
                     finishedResults.add(existingResult);
                 }
                 
                 // Xóa khỏi map để biết kết quả nào đã được cập nhật
-                existingResultsMap.remove(result.getDriver().getId());
+                existingResultsMap.remove(result.getDriverTeamAssignment().getId());
             } else {
                 // Tạo mới kết quả nếu chưa tồn tại
                 if (result.getId() == null) {
@@ -216,47 +211,20 @@ public class DriverRaceResultService {
      * Đồng bộ các entity tham chiếu từ các service khác
      */
     private void syncEntityReferences(DriverRaceResult result) {
-        // Đồng bộ Driver
-        Driver driver = result.getDriver();
-        Driver existingDriver = driverRepository.findById(driver.getId()).orElse(null);
+        // Đồng bộ DriverTeamAssignment
+        DriverTeamAssignment driverTeamAssignment = result.getDriverTeamAssignment();
+        DriverTeamAssignment existingAssignment = driverTeamAssignmentRepository.findById(driverTeamAssignment.getId()).orElse(null);
         
-        if (existingDriver == null) {
-            // Lấy thông tin tay đua từ participant-service
-            try {
-                Driver driverData = participantClient.getDriverById(driver.getId());
-                if (driverData != null) {
-                    driver.setFullName(driverData.getFullName());
-                    driver.setNationality(driverData.getNationality());
-                    driverRepository.save(driver);
-                }
-            } catch (Exception e) {
-                // Giữ nguyên thông tin hiện có
-            }
+        if (existingAssignment == null) {
+            // Đồng bộ Driver và Team trước khi lưu assignment
+            syncDriver(driverTeamAssignment.getDriver());
+            syncTeam(driverTeamAssignment.getTeam());
+            
+            // Lưu assignment mới
+            driverTeamAssignmentRepository.save(driverTeamAssignment);
         } else {
-            // Sử dụng driver đã có
-            result.setDriver(existingDriver);
-        }
-        
-        // Đồng bộ Team
-        Team team = result.getTeam();
-        Team existingTeam = teamRepository.findById(team.getId()).orElse(null);
-        
-        if (existingTeam == null) {
-            // Lấy thông tin đội đua từ participant-service
-            try {
-                Team teamData = participantClient.getTeamById(team.getId());
-                if (teamData != null) {
-                    team.setName(teamData.getName());
-                    team.setCountry(teamData.getCountry());
-                    team.setBase(teamData.getBase());
-                    teamRepository.save(team);
-                }
-            } catch (Exception e) {
-                // Giữ nguyên thông tin hiện có
-            }
-        } else {
-            // Sử dụng team đã có
-            result.setTeam(existingTeam);
+            // Sử dụng assignment đã có
+            result.setDriverTeamAssignment(existingAssignment);
         }
         
         // Đồng bộ RaceStage
@@ -284,11 +252,51 @@ public class DriverRaceResultService {
         }
     }
     
-    // Tìm kết quả đua theo id stage đua và id tay đua
-    public Optional<DriverRaceResult> findByRaceStageIdAndDriverId(String raceStageId, String driverId) {
-        return driverRaceResultRepository.findByRaceStageIdAndDriverId(raceStageId, driverId);
+    /**
+     * Đồng bộ Driver entity
+     */
+    private void syncDriver(Driver driver) {
+        Driver existingDriver = driverRepository.findById(driver.getId()).orElse(null);
+        
+        if (existingDriver == null) {
+            // Lấy thông tin tay đua từ participant-service
+            try {
+                Driver driverData = participantClient.getDriverById(driver.getId());
+                if (driverData != null) {
+                    driver.setFullName(driverData.getFullName());
+                    driver.setNationality(driverData.getNationality());
+                }
+                driverRepository.save(driver);
+            } catch (Exception e) {
+                // Giữ nguyên thông tin hiện có và lưu
+                driverRepository.save(driver);
+            }
+        }
     }
-
+    
+    /**
+     * Đồng bộ Team entity
+     */
+    private void syncTeam(Team team) {
+        Team existingTeam = teamRepository.findById(team.getId()).orElse(null);
+        
+        if (existingTeam == null) {
+            // Lấy thông tin đội đua từ participant-service
+            try {
+                Team teamData = participantClient.getTeamById(team.getId());
+                if (teamData != null) {
+                    team.setName(teamData.getName());
+                    team.setCountry(teamData.getCountry());
+                    team.setBase(teamData.getBase());
+                }
+                teamRepository.save(team);
+            } catch (Exception e) {
+                // Giữ nguyên thông tin hiện có và lưu
+                teamRepository.save(team);
+            }
+        }
+    }
+    
     // Parse thời gian từ chuỗi định dạng "hh:mm:ss.ms" sang milliseconds
     private long parseTimeToMillis(String timeString) {
         // Xử lý định dạng h:mm:ss.ms hoặc hh:mm:ss.ms

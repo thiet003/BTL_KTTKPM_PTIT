@@ -1,7 +1,8 @@
 package org.example.raceresultservice.controller;
 
-import org.example.raceresultservice.model.DriverRaceResult;
 import org.example.raceresultservice.model.Driver;
+import org.example.raceresultservice.model.DriverRaceResult;
+import org.example.raceresultservice.model.DriverTeamAssignment;
 import org.example.raceresultservice.model.RaceStage;
 import org.example.raceresultservice.model.Season;
 import org.example.raceresultservice.service.DriverRaceResultService;
@@ -40,48 +41,27 @@ public class DriverRaceResultController {
         return ResponseEntity.ok(driverRaceResultService.getDriverRaceResultsByRaceStage(raceStage));
     }
 
-    @PostMapping("/driver")
-    // Lấy kết quả đua theo Driver
-    public ResponseEntity<List<DriverRaceResult>> getDriverRaceResultsByDriver(@RequestBody Driver driver) {
-        return ResponseEntity.ok(driverRaceResultService.getDriverRaceResultsByDriver(driver));
-    }
-
-    @GetMapping("/driver/{driverId}")
-    // Lấy kết quả đua theo id tay đua
-    public ResponseEntity<List<DriverRaceResult>> getDriverRaceResultsByDriverId(@PathVariable String driverId) {
-        Driver driver = new Driver();
-        driver.setId(driverId);
-        return ResponseEntity.ok(driverRaceResultService.getDriverRaceResultsByDriver(driver));
-    }
-
-    @PostMapping("/driver/season")
-    // Lấy tất cả kết quả đua theo driver và season - sử dụng request body chứa cả driver và season
-    public ResponseEntity<List<DriverRaceResult>> getDriverRaceResultsByDriverAndSeason(
-            @RequestBody Map<String, Object> request) {
-        
-        // Tạo đối tượng Driver từ thông tin trong request
-        Map<String, Object> driverData = (Map<String, Object>) request.get("driver");
-        Driver driver = new Driver();
-        driver.setId((String) driverData.get("id"));
-        
-        // Tạo đối tượng Season từ thông tin trong request
-        Map<String, Object> seasonData = (Map<String, Object>) request.get("season");
-        Season season = new Season();
-        season.setId((String) seasonData.get("id"));
-        
-        return ResponseEntity.ok(driverRaceResultService.getDriverRaceResultsByDriverAndSeason(driver, season));
-    }
-
     @GetMapping("/driver/{driverId}/season/{seasonId}")
     // Lấy tất cả kết quả đua theo id tay đua và id mùa giải
     public ResponseEntity<List<DriverRaceResult>> getDriverRaceResultsByDriverIdAndSeasonId(
             @PathVariable String driverId, @PathVariable String seasonId) {
+        
+        return ResponseEntity.ok(driverRaceResultService.getDriverRaceResultsByDriverIdAndSeasonId(driverId, seasonId));
+    }
+    
+    // Lấy kết quả đua theo tay đua và mùa giải(theo hướng đối tượng)
+    @GetMapping("/driver/season")
+    public ResponseEntity<List<DriverRaceResult>> getDriverRaceResultsByDriverAndSeason(
+            @RequestBody Map<String, Object> request) {
+        Map<String, Object> driverData = (Map<String, Object>) request.get("driver");
+        Map<String, Object> seasonData = (Map<String, Object>) request.get("season");
+
         Driver driver = new Driver();
-        driver.setId(driverId);
-        
+        driver.setId((String) driverData.get("id"));
+
         Season season = new Season();
-        season.setId(seasonId);
-        
+        season.setId((String) seasonData.get("id"));
+
         return ResponseEntity.ok(driverRaceResultService.getDriverRaceResultsByDriverAndSeason(driver, season));
     }
 

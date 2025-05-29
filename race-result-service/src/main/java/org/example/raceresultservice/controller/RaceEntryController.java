@@ -25,14 +25,6 @@ public class RaceEntryController {
         return ResponseEntity.ok(raceEntryService.getAllRaceEntries());
     }
 
-    @GetMapping("/{id}")
-    // Lấy kết quả đăng ký chặng đua theo id
-    public ResponseEntity<RaceEntry> getRaceEntryById(@PathVariable String id) {
-        return raceEntryService.getRaceEntryById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-    
     @PostMapping("/race-stage")
     // Lấy kết quả đăng ký chặng đua theo RaceStage
     public ResponseEntity<List<RaceEntry>> getRaceEntriesByRaceStage(@RequestBody RaceStage raceStage) {

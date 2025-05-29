@@ -27,5 +27,5 @@ public class Driver {
     
     @OneToMany(mappedBy = "driver")
     @JsonIgnoreProperties({"driver", "hibernateLazyInitializer", "handler"})
-    private List<DriverRaceResult> raceResults;
+    private List<DriverTeamAssignment> teamAssignments;
 } 

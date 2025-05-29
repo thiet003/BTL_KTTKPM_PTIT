@@ -1,13 +1,9 @@
 package org.example.standings_service.strategy;
 
-
 import org.example.standings_service.model.Driver;
-import org.example.standings_service.model.DriverRaceResult;
 import org.example.standings_service.model.DriverStanding;
 import org.example.standings_service.model.RacingTeam;
 import org.example.standings_service.model.Season;
-import org.example.standings_service.repository.DriverStandingRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -18,9 +14,8 @@ import java.util.UUID;
 public class DefaultStandingsCalculationStrategy implements StandingsCalculationStrategy {
 
     @Override
-    public DriverStanding calculateDriverStanding(String seasonId, String driverId, String driverName, 
-                                                 String teamId, String teamName, String nationality,
-                                                 List<DriverRaceResult> results) {
+    public DriverStanding calculateDriverStanding(String seasonId, String driverId, 
+                                                 String teamId, List<Integer> racePoints) {
         // Tạo mới một đối tượng DriverStanding
         DriverStanding standing = new DriverStanding();
         standing.setId(UUID.randomUUID().toString());
@@ -32,15 +27,12 @@ public class DefaultStandingsCalculationStrategy implements StandingsCalculation
         
         Driver driver = new Driver();
         driver.setId(driverId);
-        driver.setFullName(driverName);
-        driver.setNationality(nationality);
         standing.setDriver(driver);
         
         if (teamId != null) {
             RacingTeam team = new RacingTeam();
             team.setId(teamId);
-            team.setName(teamName);
-            standing.setTeam(team);
+            standing.setLastTeam(team);
         }
 
         // Tính toán điểm, thắng và podium
@@ -48,74 +40,15 @@ public class DefaultStandingsCalculationStrategy implements StandingsCalculation
         int wins = 0;
         int podiums = 0;
 
-        for (DriverRaceResult result : results) {
-            if (result.getPoints() != null) {
-                totalPoints += result.getPoints();
-            }
-
-            if (result.getFinishPosition() != null) {
-                if (result.getFinishPosition() == 1) {
+        for (Integer points : racePoints) {
+            if (points != null) {
+                totalPoints += points;
+                
+                // Assuming standard F1 scoring: 25 points for 1st, 18 for 2nd, 15 for 3rd
+                if (points == 25) {
                     wins++;
-                }
-
-                if (result.getFinishPosition() <= 3) {
                     podiums++;
-                }
-            }
-        }
-
-        standing.setTotalPoints(totalPoints);
-        standing.setWins(wins);
-        standing.setPodiums(podiums);
-        standing.setLastCalculated(LocalDateTime.now());
-        standing.setRank(0);
-        return standing;
-    }
-    
-    @Override
-    public DriverStanding calculateDriverStanding(Season season, Driver driver, String driverName,
-                                                 RacingTeam team, String teamName, String nationality,
-                                                 List<DriverRaceResult> results) {
-        // Tạo mới một đối tượng DriverStanding
-        DriverStanding standing = new DriverStanding();
-        standing.setId(UUID.randomUUID().toString());
-        
-        // Set entity references
-        standing.setSeason(season);
-        standing.setDriver(driver);
-        standing.setTeam(team);
-        
-        // Đảm bảo các thuộc tính của tay đua được thiết lập
-        if (driver != null) {
-            if (driver.getFullName() == null) {
-                driver.setFullName(driverName);
-            }
-            if (driver.getNationality() == null) {
-                driver.setNationality(nationality);
-            }
-        }
-        
-        // Đảm bảo các thuộc tính của đội đua được thiết lập
-        if (team != null && team.getName() == null) {
-            team.setName(teamName);
-        }
-
-        // Tính toán điểm, thắng và podium
-        int totalPoints = 0;
-        int wins = 0;
-        int podiums = 0;
-
-        for (DriverRaceResult result : results) {
-            if (result.getPoints() != null) {
-                totalPoints += result.getPoints();
-            }
-
-            if (result.getFinishPosition() != null) {
-                if (result.getFinishPosition() == 1) {
-                    wins++;
-                }
-
-                if (result.getFinishPosition() <= 3) {
+                } else if (points == 18 || points == 15) {
                     podiums++;
                 }
             }

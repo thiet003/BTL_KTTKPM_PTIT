@@ -15,24 +15,26 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class DriverStanding {
     @Id
     private String id;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "season_id", nullable = false)
-    @JsonIgnoreProperties("driverStandings")
+    @JsonIgnoreProperties({"driverStandings", "hibernateLazyInitializer", "handler"})
     private Season season;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "driver_id", nullable = false)
-    @JsonIgnoreProperties("driverStandings")
+    @JsonIgnoreProperties({"driverStandings", "teamAssignments", "hibernateLazyInitializer", "handler"})
     private Driver driver;
-
+    
+    // lastTeam represents the driver's current/most recent team
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "team_id")
-    @JsonIgnoreProperties("driverStandings")
-    private RacingTeam team;
+    @JoinColumn(name = "last_team_id")
+    @JsonIgnoreProperties({"driverStandings", "driverAssignments", "hibernateLazyInitializer", "handler"})
+    private RacingTeam lastTeam;
 
     @Column(name = "total_points")
     private Integer totalPoints;
