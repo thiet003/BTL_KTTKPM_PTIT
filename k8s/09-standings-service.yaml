@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standings-service
+  namespace: f1-app
+  labels:
+    app: standings-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: standings-service
+  template:
+    metadata:
+      labels:
+        app: standings-service
+    spec:
+      containers:
+      - name: standings-service
+        image: standings-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8084
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://standings-db:3306/standings_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        - name: SPRING_RABBITMQ_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: RABBITMQ_HOST
+        - name: SPRING_RABBITMQ_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: RABBITMQ_PORT
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8084
+          initialDelaySeconds: 90
+          periodSeconds: 30
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 2; done;']
+      - name: wait-for-db
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z standings-db 3306; do echo waiting for database; sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+      - name: wait-for-race-result-service
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z race-result-service 8083; do echo waiting for race-result-service; sleep 2; done;']
+      - name: wait-for-participant-service
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z participant-service 8082; do echo waiting for participant-service; sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: standings-service
+  namespace: f1-app
+  labels:
+    app: standings-service
+spec:
+  selector:
+    app: standings-service
+  ports:
+  - port: 8084
+    targetPort: 8084
+    protocol: TCP
+  type: ClusterIP 

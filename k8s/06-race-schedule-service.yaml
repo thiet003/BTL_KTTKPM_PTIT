@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: race-schedule-service
+  namespace: f1-app
+  labels:
+    app: race-schedule-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: race-schedule-service
+  template:
+    metadata:
+      labels:
+        app: race-schedule-service
+    spec:
+      containers:
+      - name: race-schedule-service
+        image: race-schedule-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://race-schedule-db:3306/race_schedule_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 90
+          periodSeconds: 30
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 2; done;']
+      - name: wait-for-db
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z race-schedule-db 3306; do echo waiting for database; sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: race-schedule-service
+  namespace: f1-app
+  labels:
+    app: race-schedule-service
+spec:
+  selector:
+    app: race-schedule-service
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+  type: ClusterIP 

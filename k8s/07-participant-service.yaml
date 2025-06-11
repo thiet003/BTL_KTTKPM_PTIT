@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: participant-service
+  namespace: f1-app
+  labels:
+    app: participant-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: participant-service
+  template:
+    metadata:
+      labels:
+        app: participant-service
+    spec:
+      containers:
+      - name: participant-service
+        image: participant-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8082
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://participant-db:3306/participant_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        - name: SPRING_RABBITMQ_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: RABBITMQ_HOST
+        - name: SPRING_RABBITMQ_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: f1-app-config
+              key: RABBITMQ_PORT
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8082
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8082
+          initialDelaySeconds: 90
+          periodSeconds: 30
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 2; done;']
+      - name: wait-for-db
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z participant-db 3306; do echo waiting for database; sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: participant-service
+  namespace: f1-app
+  labels:
+    app: participant-service
+spec:
+  selector:
+    app: participant-service
+  ports:
+  - port: 8082
+    targetPort: 8082
+    protocol: TCP
+  type: ClusterIP 

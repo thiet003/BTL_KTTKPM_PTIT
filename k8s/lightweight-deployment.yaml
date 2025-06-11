@@ -1,0 +1,488 @@
+# LIGHTWEIGHT VERSION - Chỉ dùng khoảng 1.5GB RAM total
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: f1-app-lite
+  labels:
+    app: f1-management-system-lite
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: f1-app-config
+  namespace: f1-app-lite
+data:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: "http://eureka-server:8761/eureka"
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: f1-app-secrets
+  namespace: f1-app-lite
+type: Opaque
+data:
+  mysql-root-password: cm9vdA== # base64 encoded "root"
+---
+# EUREKA SERVER - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eureka-server
+  template:
+    metadata:
+      labels:
+        app: eureka-server
+    spec:
+      containers:
+      - name: eureka-server
+        image: eureka-server:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8761
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms64m -Xmx128m"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: eureka-server
+  ports:
+  - port: 8761
+    targetPort: 8761
+---
+# MYSQL SHARED - 512MB (Dùng chung 1 database)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-shared
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-shared
+  template:
+    metadata:
+      labels:
+        app: mysql-shared
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root"
+        - name: MYSQL_DATABASE
+          value: "f1_shared_db"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-shared
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: mysql-shared
+  ports:
+  - port: 3306
+    targetPort: 3306
+---
+# RABBITMQ - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3.12-management-alpine
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+  - port: 5672
+    targetPort: 5672
+    name: amqp
+  - port: 15672
+    targetPort: 15672
+    name: management
+---
+# RACE SCHEDULE SERVICE - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: race-schedule-service
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: race-schedule-service
+  template:
+    metadata:
+      labels:
+        app: race-schedule-service
+    spec:
+      containers:
+      - name: race-schedule-service
+        image: race-schedule-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms64m -Xmx128m"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-shared:3306/f1_shared_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "root"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do sleep 2; done;']
+        resources:
+          requests:
+            memory: "16Mi"
+            cpu: "10m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: race-schedule-service
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: race-schedule-service
+  ports:
+  - port: 8081
+    targetPort: 8081
+---
+# PARTICIPANT SERVICE - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: participant-service
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: participant-service
+  template:
+    metadata:
+      labels:
+        app: participant-service
+    spec:
+      containers:
+      - name: participant-service
+        image: participant-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8082
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms64m -Xmx128m"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-shared:3306/f1_shared_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "root"
+        - name: SPRING_RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: SPRING_RABBITMQ_PORT
+          value: "5672"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do sleep 2; done;']
+      - name: wait-for-mysql
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z mysql-shared 3306; do sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: participant-service
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: participant-service
+  ports:
+  - port: 8082
+    targetPort: 8082
+---
+# RACE RESULT SERVICE - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: race-result-service
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: race-result-service
+  template:
+    metadata:
+      labels:
+        app: race-result-service
+    spec:
+      containers:
+      - name: race-result-service
+        image: race-result-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8083
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms64m -Xmx128m"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-shared:3306/f1_shared_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "root"
+        - name: SPRING_RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: SPRING_RABBITMQ_PORT
+          value: "5672"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do sleep 2; done;']
+      - name: wait-for-mysql
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z mysql-shared 3306; do sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: race-result-service
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: race-result-service
+  ports:
+  - port: 8083
+    targetPort: 8083
+---
+# STANDINGS SERVICE - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standings-service
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: standings-service
+  template:
+    metadata:
+      labels:
+        app: standings-service
+    spec:
+      containers:
+      - name: standings-service
+        image: standings-service:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8084
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms64m -Xmx128m"
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:mysql://mysql-shared:3306/f1_shared_db"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "root"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "root"
+        - name: SPRING_RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: SPRING_RABBITMQ_PORT
+          value: "5672"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do sleep 2; done;']
+      - name: wait-for-mysql
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z mysql-shared 3306; do sleep 2; done;']
+      - name: wait-for-rabbitmq
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z rabbitmq 5672; do sleep 2; done;']
+      - name: wait-for-race-result
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z race-result-service 8083; do sleep 2; done;']
+      - name: wait-for-participant
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z participant-service 8082; do sleep 2; done;']
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: standings-service
+  namespace: f1-app-lite
+spec:
+  selector:
+    app: standings-service
+  ports:
+  - port: 8084
+    targetPort: 8084
+---
+# API GATEWAY - 128MB
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: f1-app-lite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: api-gateway:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        - name: JAVA_OPTS
+          value: "-Xms64m -Xmx128m"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      initContainers:
+      - name: wait-for-eureka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z eureka-server 8761; do sleep 2; done;']
+        resources:
+          requests:
+            memory: "16Mi"
+            cpu: "10m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: f1-app-lite
+  labels:
+    app: api-gateway
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+    protocol: TCP
+  type: NodePort 

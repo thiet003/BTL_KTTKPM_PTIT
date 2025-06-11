@@ -1,0 +1,335 @@
+# Race Schedule Database
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: race-schedule-db
+  namespace: f1-app
+  labels:
+    app: race-schedule-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: race-schedule-db
+  template:
+    metadata:
+      labels:
+        app: race-schedule-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        - name: MYSQL_DATABASE
+          value: race_schedule_db
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: race-schedule-db-pvc
+      - name: init-script
+        hostPath:
+          path: /c/Users/ADMIN/Desktop/KTPM/BTL_KTTKPM_PTIT/databases/race-schedule-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: race-schedule-db
+  namespace: f1-app
+  labels:
+    app: race-schedule-db
+spec:
+  selector:
+    app: race-schedule-db
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+  type: ClusterIP
+---
+# Participant Database
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: participant-db
+  namespace: f1-app
+  labels:
+    app: participant-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: participant-db
+  template:
+    metadata:
+      labels:
+        app: participant-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        - name: MYSQL_DATABASE
+          value: participant_db
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: participant-db-pvc
+      - name: init-script
+        hostPath:
+          path: /c/Users/ADMIN/Desktop/KTPM/BTL_KTTKPM_PTIT/databases/participant-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: participant-db
+  namespace: f1-app
+  labels:
+    app: participant-db
+spec:
+  selector:
+    app: participant-db
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+  type: ClusterIP
+---
+# Race Result Database
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: race-result-db
+  namespace: f1-app
+  labels:
+    app: race-result-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: race-result-db
+  template:
+    metadata:
+      labels:
+        app: race-result-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        - name: MYSQL_DATABASE
+          value: race_result_db
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: race-result-db-pvc
+      - name: init-script
+        hostPath:
+          path: /c/Users/ADMIN/Desktop/KTPM/BTL_KTTKPM_PTIT/databases/race-result-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: race-result-db
+  namespace: f1-app
+  labels:
+    app: race-result-db
+spec:
+  selector:
+    app: race-result-db
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+  type: ClusterIP
+---
+# Standings Database
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: standings-db
+  namespace: f1-app
+  labels:
+    app: standings-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: standings-db
+  template:
+    metadata:
+      labels:
+        app: standings-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: f1-app-secrets
+              key: mysql-root-password
+        - name: MYSQL_DATABASE
+          value: standings_db
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+            - -u
+            - root
+            - -proot
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: standings-db-pvc
+      - name: init-script
+        hostPath:
+          path: /c/Users/ADMIN/Desktop/KTPM/BTL_KTTKPM_PTIT/databases/standings-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: standings-db
+  namespace: f1-app
+  labels:
+    app: standings-db
+spec:
+  selector:
+    app: standings-db
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+  type: ClusterIP
